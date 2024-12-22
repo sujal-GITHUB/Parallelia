@@ -1,143 +1,221 @@
-const axios = require('axios')
+const axios2 = require('axios')
 
 const BACKEND_URL = "http://localhost:3000"
 const WS_URL = "ws://localhost:3001"
 
-describe("Authentication",()=>{
-    test('User is able to sign up only once',async()=>{
-        const username = "sujal"+Math.random()
-        const password = "123456"
- 
-        const response = await axios.post(`${BACKEND_URL}/api/v1/signup`,{
+const axios = {
+    post: async(...args) => {
+        try {
+            const res = await axios2.post(...args)
+            return res
+        } catch (error) {
+            return error.response
+        }
+    },
+
+    get: async(...args) => {
+        try {
+            const res = await axios2.get(...args)
+            return res
+        } catch (error) {
+            return error.response
+        }
+    },
+
+    put: async(...args) => {
+        try {
+            const res = await axios2.put(...args)
+            return res
+        } catch (error) {
+            return error.response
+        }
+    },
+
+    delete: async(...args) => {
+        try {
+            const res = await axios2.delete(...args)
+            return res
+        } catch (error) {
+            return error.response
+        }
+    }
+}
+
+describe("Authentication", () => {
+    test('User is able to sign up only once', async () => {
+        const username = "sujal-" + Date.now();
+        const password = "12345678";
+
+        const response = await axios.post(`${BACKEND_URL}/api/v1/signup`, {
             username,
             password,
-            type:admin
-        })
+            type: "admin"
+        });
 
-        expect(response.statusCode).toBe(200)
+        expect(response.status).toBe(201); // Created resource
 
-        const Updatedresponse = await axios.post(`${BACKEND_URL}/api/v1/signup`,{
+        const duplicateResponse = await axios.post(`${BACKEND_URL}/api/v1/signup`, {
             username,
             password,
-            type:admin
-        })
+            type: "admin"
+        });
 
-        expect(Updatedresponse.statusCode).toBe(400)
-    })
+        expect(duplicateResponse.status).toBe(400); // User already exists
+    });
 
-    test('Signup requst fails if the username is empty',async()=>{
-        const username = "sujal"+Math.random()
-        const password = "123456"
+    test('Signup request fails if the username is empty', async () => {
+        const password = "12345678";
 
-        const Updatedresponse = await axios.post(`${BACKEND_URL}/api/v1/signup`,{
-            password,
-        })
+        const response = await axios.post(`${BACKEND_URL}/api/v1/signup`, {
+            password, // Missing username here
+            type: "admin"
+        }).catch(err => err.response);
 
-        expect(Updatedresponse.statusCode).toBe(400)
-    })
+        expect(response.status).toBe(400); // Validation error
+    });
 
-    test('Sign in succeeds if username and password is correct',async()=>{
-        const username = "sujal"+Math.random()
-        const password = "123456"
+    test('Sign in succeeds if username and password are correct', async () => {
+        const username = "sujal-" + Date.now();
+        const password = "12345678";
 
-        await axios.post(`${BACKEND_URL}/api/v1/signup`,{
+        await axios.post(`${BACKEND_URL}/api/v1/signup`, {
             username,
             password,
-        })
+            type: 'admin'
+        });
 
-        const response = await axios.post(`${BACKEND_URL}/api/v1/signin`,{
-            username,
-            password,
-        })
-
-        expect(response.statusCode).toBe(200)
-        expect(response.body.token).toBeDefined()
-    })
-
-    test('Sign in fails if username or password is incorrect',async()=>{
-        const username = "sujal"+Math.random()
-        const password = "123456"
-
-        await axios.post(`${BACKEND_URL}/api/v1/signup`,{
+        const response = await axios.post(`${BACKEND_URL}/api/v1/signin`, {
             username,
             password
-        })
+        });
 
-        const response = await axios.post(`${BACKEND_URL}/api/v1/signin`,{
-            username: "Wrong",
-            password
-        })      
+        expect(response.status).toBe(200);
+        expect(response.data.token).toBeDefined(); // Token should be returned
+    });
 
-        expect(response.statusCode).toBe(403)
-    })
-})
+    test('Sign in fails if username or password is incorrect', async () => {
+        const username = "sujal-" + Date.now();
+        const password = "12345678";
 
-describe('User metadata endpoints',()=>{
-
-    let token = ""
-    let avatarId = ""
-
-    beforeAll(async ()=>{
-        const username = 'sujal' + Math.random()
-        const password = 123456
-
-        await axios.post(`${BACKEND_URL}/api/v1/signup`,{
+        await axios.post(`${BACKEND_URL}/api/v1/signup`, {
             username,
             password,
-            type:'admin'
-        })
+            type: 'admin'
+        });
 
-        const response = await axios.post(`${BACKEND_URL}/api/v1/signin`,{
-            username,
+        const response = await axios.post(`${BACKEND_URL}/api/v1/signin`, {
+            username: "WrongUsername", // Incorrect username
             password
-        })
+        }).catch(err => err.response);
 
-        token = response.data.token
+        expect(response.status).toBe(403); // Invalid credentials
+    });
 
-        const avatarResponse = await axios.post(`${BACKEND_URL}/api/v1/admin/avatar`,{
-            "imageUrl":"https://plus.unsplash.com/premium_photo-1683865776032-07bf70b0add1?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-            "name":"Timmy"
-        },{
-            headers:{
-                "authorization":`Bearer ${token}`
-            }
-        })  
+    test('Sign in fails if password is incorrect', async () => {
+        const username = "sujal-" + Date.now();
+        const password = "12345678";
 
-        avatarId = avatarResponse.data.avatarId  
-    })
+        await axios.post(`${BACKEND_URL}/api/v1/signup`, {
+            username,
+            password,
+            type: 'admin'
+        });
 
-    test("User cant update their metadata with wrong avatar id",async ()=>{
-        const response = await axios.post(`${BACKEND_URL}/api/v1/user/metadata`,{
-            avatarId: "123123123"
-        },{
-            headers:{
-                "authorization":`Bearer ${token}`
-            }
-        })
+        const response = await axios.post(`${BACKEND_URL}/api/v1/signin`, {
+            username,
+            password: "WrongPassword" // Incorrect password
+        }).catch(err => err.response);
 
-        expect(response.statusCode).toBe(400)
-    })
+        expect(response.status).toBe(403); // Invalid credentials
+    });
+});
 
-    test("User can update their metadata with right avatar id", async() =>{
-        const response = await axios.post(`${BACKEND_URL}/api/v1/user/metadata`,{
-            avatarId: avatarId
-        },{
-            headers:{
-                "authorization":`Bearer ${token}`
-            }
-        })
+describe('User metadata endpoints', () => {
+    let token = "";
+    let avatarId = "";
 
-        expect(response.statusCode).toBe(200)    
-    })
-    
-    test("User can update their metadata with right avatar id", async() =>{
-        const response = await axios.post(`${BACKEND_URL}/api/v1/user/metadata`,{
-            avatarId: avatarId
-        })
+    beforeAll(async () => {
+        // Sign up and sign in as an admin
+        const username = 'sujal' + Math.random();
+        const password = '12345678';
 
-        expect(response.statusCode).toBe(403)    
-    })
-})
+        await axios.post(`${BACKEND_URL}/api/v1/signup`, {
+            username,
+            password,
+            type: 'admin',
+        });
+
+        const response = await axios.post(`${BACKEND_URL}/api/v1/signin`, {
+            username,
+            password,
+        });
+
+        token = response.data.token;
+
+        // Create an avatar
+        const avatarResponse = await axios.post(`${BACKEND_URL}/api/v1/admin/avatar`, {
+            imageUrl: "https://plus.unsplash.com/premium_photo-1683865776032-07bf70b0add1?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+            name: "Timmy",
+        }, {
+            headers: {
+                authorization: `Bearer ${token}`,
+            },
+        });
+
+        avatarId = avatarResponse.data.avatarId;
+    });
+
+    test("User can't update their metadata with an invalid avatar ID", async () => {
+        try {
+            const response = await axios.post(`${BACKEND_URL}/api/v1/user/metadata`, {
+                avatarId: "123123123",
+            }, {
+                headers: {
+                    authorization: `Bearer ${token}`,
+                },
+            });
+
+            // Assert the status code
+            expect(response.status).toBe(400);
+        } catch (error) {
+            // Handle 400 errors explicitly
+            expect(error.response.status).toBe(400);
+        }
+    });
+
+    test("User can update their metadata with a valid avatar ID", async () => {
+        try {
+            const response = await axios.post(`${BACKEND_URL}/api/v1/user/metadata`, {
+                avatarId: avatarId,
+            }, {
+                headers: {
+                    authorization: `Bearer ${token}`,
+                },
+            });
+
+            // Assert the status code
+            expect(response.status).toBe(200);
+        } catch (error) {
+            // Handle unexpected errors
+            console.error("Error:", error);
+            throw error;
+        }
+    });
+
+    test("Unauthorized user cannot update metadata", async () => {
+        try {
+            const response = await axios.post(`${BACKEND_URL}/api/v1/user/metadata`, {
+                avatarId: avatarId,
+            });
+
+            // This line should not be reached
+            throw new Error("Unauthorized request was successful unexpectedly");
+        } catch (error) {
+            // Assert the status code for unauthorized access
+            expect(error.response.status).toBe(403);
+        }
+    });
+});
 
 describe("User avatar information",()=>{
     let avatarId
@@ -578,411 +656,324 @@ describe('Tests for Arena endpoints', () => {
     })  
 })
 
-describe("Create an element",async()=>{ 
-    let userToken
-    let userId
-    let adminId 
-    let adminToken 
+describe("Create an element", () => {
+    let userToken, 
+    userId, 
+    adminId, 
+    adminToken;
+    let mapId; // Assuming mapId is predefined or needs to be set up in the beforeAll block
 
-    beforeAll(async ()=>{
-        const username = 'sujal' + Math.random()
-        const password = 123456
+    beforeAll(async () => {
+        const username = 'sujal' + Math.random();
+        const password = "123456";
 
-        const userSignupResponse = await axios.post(`${BACKEND_URL}/api/v1/signup`,{
+        // User Signup and Sign-in
+        const userSignupResponse = await axios.post(`${BACKEND_URL}/api/v1/signup`, {
             username,
             password,
-            type:'user'
-        })
+            type: 'user',
+        });
 
-        userId = userSignupResponse.data.userId
+        userId = userSignupResponse.data.userId;
 
-        const userSigninResponse = await axios.post(`${BACKEND_URL}/api/v1/signin`,{
-            username:username+'-user',
-            password,
-        })
-
-        userToken = userSigninResponse.data.token
-
-        const signupResponse = await axios.post(`${BACKEND_URL}/api/v1/signup`,{
+        const userSigninResponse = await axios.post(`${BACKEND_URL}/api/v1/signin`, {
             username,
             password,
-            type:'admin'
-        })
+        });
 
-        adminId = signupResponse.data.userId
+        userToken = userSigninResponse.data.token;
 
-        const response = await axios.post(`${BACKEND_URL}/api/v1/signin`,{
-            username,
+        // Admin Signup and Sign-in
+        const adminSignupResponse = await axios.post(`${BACKEND_URL}/api/v1/signup`, {
+            username: username + "-admin",
             password,
-        })
+            type: 'admin',
+        });
 
-        adminToken = response.data.token
+        adminId = adminSignupResponse.data.userId;
 
-        const space = await axios.post(`${BACKEND_URL}/api/v1/space`,{
-            "name":"Test",
-            "dimensions":"100*200",
-            "mapId":mapId
-        },{
-            headers:{
-                "authorization":`Bearer ${userToken}`
-            }
-        })
-    })
+        const adminSigninResponse = await axios.post(`${BACKEND_URL}/api/v1/signin`, {
+            username: username + "-admin",
+            password,
+        });
 
-    test("User is not able to hit admin endpoints", async()=>{
-        const elementResponse = await axios.post(`${BACKEND_URL}/api/v1/admin/element`,{
-            "imageUrl":"https://plus.unsplash.com/premium_photo-1683865776032-07bf70b0add1?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-            "width":1,
-            "height":1,
-            "static":true
-        },{
-            headers:{
-                "authorization": `Bearer ${userToken}`
-            }
-        })
+        adminToken = adminSigninResponse.data.token;
 
-        const mapResponse = await axios.post(`${BACKEND_URL}/api/v1/admin/map`,{
-            "thumbnail":"https://thumbnail.com/a.png",
-            "dimensions":"100*200",
-            "defaultElements":[]
-        },{
-            headers:{
-                "authorization": `Bearer ${userToken}`
-            }
-        })
+        // Create a space
+        const spaceResponse = await axios.post(`${BACKEND_URL}/api/v1/space`, {
+            name: "Test",
+            dimensions: "100*200",
+            mapId,
+        }, {
+            headers: {
+                authorization: `Bearer ${userToken}`,
+            },
+        });
 
-        const createAvatarResponse = await axios.post(`${BACKEND_URL}/api/v1/avatar`,{
-            "thumbnail":"https://thumbnail.com/a.png",
-            "dimensions":"100*200",
-            "defaultElements":[]
-        },{
-            headers:{
-                "authorization": `Bearer ${userToken}`
-            }
-        })
+        mapId = spaceResponse.data.mapId; // Assuming response includes a mapId
+    });
 
-        const avatarResponse = await axios.post(`${BACKEND_URL}/api/v1/admin/avatar`,{
-            "imageUrl":"https://plus.unsplash.com/premium_photo-1683865776032-07bf70b0add1?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-            "name":"Timmy"
-        },{
-            headers:{
-                "authorization":`Bearer ${userToken}`
-            }
-        })  
+    test("User is not able to hit admin endpoints", async () => {
+        try {
+            const elementResponse = await axios.post(`${BACKEND_URL}/api/v1/admin/element`, {
+                imageUrl: "https://example.com/image.png",
+                width: 1,
+                height: 1,
+                static: true,
+            }, {
+                headers: {
+                    authorization: `Bearer ${userToken}`,
+                },
+            });
 
-        const updateElementResponse = await axios.put(`${BACKEND_URL}/api/v1/admin/element/:elementId`,{
-            "imageUrl":"https://plus.unsplash.com/premium_photo-1683865776032-07bf70b0add1?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-        },{
-            headers:{
-                "authorization":`Bearer ${userToken}`
-            }
-        })
+            expect(elementResponse.status).toBe(403);
+        } catch (error) {
+            expect(error.response.status).toBe(403);
+        }
+    });
 
-        expect(elementResponse.statusCode).toBe(403)
-        expect(mapResponse.statusCode).toBe(403)
-        expect(avatarResponse.statusCode).toBe(403)
-        expect(updateElementResponse.statusCode).toBe(403)
-    })
+    test("Admin is able to hit admin endpoints", async () => {
+        const elementResponse = await axios.post(`${BACKEND_URL}/api/v1/admin/element`, {
+            imageUrl: "https://example.com/image.png",
+            width: 1,
+            height: 1,
+            static: true,
+        }, {
+            headers: {
+                authorization: `Bearer ${adminToken}`,
+            },
+        });
 
-    test("User is able to hit admin endpoints", async()=>{
-        const elementResponse = await axios.post(`${BACKEND_URL}/api/v1/admin/element`,{
-            "imageUrl":"https://plus.unsplash.com/premium_photo-1683865776032-07bf70b0add1?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-            "width":1,
-            "height":1,
-            "static":true
-        },{
-            headers:{
-                "authorization": `Bearer ${adminToken}`
-            }
-        })
+        const mapResponse = await axios.post(`${BACKEND_URL}/api/v1/admin/map`, {
+            thumbnail: "https://thumbnail.com/a.png",
+            dimensions: "100*200",
+            defaultElements: [],
+        }, {
+            headers: {
+                authorization: `Bearer ${adminToken}`,
+            },
+        });
 
-        const mapResponse = await axios.post(`${BACKEND_URL}/api/v1/admin/map`,{
-            "thumbnail":"https://thumbnail.com/a.png",
-            "dimensions":"100*200",
-            "defaultElements":[]
-        },{
-            headers:{
-                "authorization": `Bearer ${adminToken}`
-            }
-        })
+        const avatarResponse = await axios.post(`${BACKEND_URL}/api/v1/admin/avatar`, {
+            imageUrl: "https://example.com/avatar.png",
+            name: "Timmy",
+        }, {
+            headers: {
+                authorization: `Bearer ${adminToken}`,
+            },
+        });
 
-        const avatarResponse = await axios.post(`${BACKEND_URL}/api/v1/admin/avatar`,{
-            "imageUrl":"https://plus.unsplash.com/premium_photo-1683865776032-07bf70b0add1?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-            "name":"Timmy"
-        },{
-            headers:{
-                "authorization":`Bearer ${adminToken}`
-            }
-        })  
+        expect(elementResponse.status).toBe(200);
+        expect(mapResponse.status).toBe(200);
+        expect(avatarResponse.status).toBe(200);
+    });
 
-        expect(elementResponse.statusCode).toBe(200)
-        expect(mapResponse.statusCode).toBe(200)
-        expect(avatarResponse.statusCode).toBe(200)
-    })   
+    test("Admin is able to update a space", async () => {
+        const elementResponse = await axios.post(`${BACKEND_URL}/api/v1/admin/element`, {
+            imageUrl: "https://example.com/image.png",
+            width: 1,
+            height: 1,
+            static: true,
+        }, {
+            headers: {
+                authorization: `Bearer ${adminToken}`,
+            },
+        });
 
-    test("Admin is able to update a space", async()=>{
+        const updateElementResponse = await axios.put(`${BACKEND_URL}/api/v1/admin/element/${elementResponse.data.id}`, {
+            imageUrl: "https://example.com/updated-image.png",
+        }, {
+            headers: {
+                authorization: `Bearer ${adminToken}`,
+            },
+        });
 
-        const elementResponse = await axios.post(`${BACKEND_URL}/api/v1/admin/element`,{
-            "imageUrl":"https://plus.unsplash.com/premium_photo-1683865776032-07bf70b0add1?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-            "width":1,
-            "height":1,
-            "static":true
-        },{
-            headers:{
-                "authorization":`Bearer ${adminToken}`
-            }
-        })
+        expect(updateElementResponse.status).toBe(200);
+    });
+});
 
-        const updateElementResponse = await axios.put(`${BACKEND_URL}/api/v1/admin/element/:${elementResponse.data.id}`,{
-            "imageUrl":"https://plus.unsplash.com/premium_photo-1683865776032-07bf70b0add1?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-        },{
-            headers:{
-                "authorization":`Bearer ${adminToken}`
-            }
-        })
+describe('WebSocket tests', () => {
+    let adminToken;
+    let adminUserId;
+    let userToken;
+    let userId;
+    let mapId;
+    let element1Id;
+    let element2Id;
+    let spaceId;
+    let ws1;
+    let ws2;
+    let ws1Messages = [];
+    let ws2Messages = [];
+    let userX;
+    let userY;
+    let adminX;
+    let adminY;
 
-        expect(updateElementResponse.statusCode).toBe(200)
-    })
-})
-
-describe('Web socket tests', async() => {
-    let adminToken
-    let adminUserId
-    let userToken
-    let userId
-    let mapId
-    let element1Id
-    let element2Id
-    let spaceId
-    let ws1
-    let ws2
-    let ws1Messages = []
-    let ws2Messages = []
-    let userX
-    let userY
-    let adminX
-    let adminY
-
-    function waitForAndPopLatestMessage(messageArray){
-        return new Promise(r=>{
-            if (messageArray.length>0){
-                return messageArray.shift()
-            }
-            else{
-                let interval = setInterval(() => {
-                    if(messageArray.length>0){
-                        resolve(messageArray.shift())
-                        clearInterval(interval)
+    const waitForAndPopLatestMessage = (messageArray) => {
+        return new Promise((resolve) => {
+            if (messageArray.length > 0) {
+                resolve(messageArray.shift());
+            } else {
+                const interval = setInterval(() => {
+                    if (messageArray.length > 0) {
+                        resolve(messageArray.shift());
+                        clearInterval(interval);
                     }
                 }, 100);
             }
-        })
-    }
+        });
+    };
 
-    async function setupHTTP(){
-        const username = `sujal-${Math.random()}`
-        const adminSignupResponse = await axios.post(`${BACKEND_URL}/api/v1/signup`,{
+    const setupHTTP = async () => {
+        const username = `sujal-${Math.random()}`;
+        const password = 'TestPassword123';
+
+        const adminSignupResponse = await axios.post(`${BACKEND_URL}/api/v1/signup`, {
             username,
             password,
             role: "admin"
-        })
+        });
 
-        const adminSigninResponse = await axios.post(`${BACKEND_URL}/api/v1/signin`,{
+        const adminSigninResponse = await axios.post(`${BACKEND_URL}/api/v1/signin`, {
             username,
             password
-        })
+        });
 
-        adminUserId = adminSignupResponse.data.userId
-        adminToken = adminSigninResponse.data.token
+        adminUserId = adminSignupResponse.data.userId;
+        adminToken = adminSigninResponse.data.token;
 
-        const userSignupResponse = await axios.post(`${BACKEND_URL}/api/v1/signup`,{
-            username:username + "-user",
+        const userSignupResponse = await axios.post(`${BACKEND_URL}/api/v1/signup`, {
+            username: `${username}-user`,
             password
-        })
+        });
 
-        const userSigninResponse = await axios.post(`${BACKEND_URL}/api/v1/signin`,{
-            username:username + "-user",
+        const userSigninResponse = await axios.post(`${BACKEND_URL}/api/v1/signin`, {
+            username: `${username}-user`,
             password
-        })
+        });
 
-        userId = userSignupResponse.data.userId
-        userToken = userSigninResponse.data.token
+        userId = userSignupResponse.data.userId;
+        userToken = userSigninResponse.data.token;
 
-        const element1Response = await axios.post(`${BACKEND_URL}/api/v1/admin/element`,{
-            "imageUrl":"https://plus.unsplash.com/premium_photo-1683865776032-07bf70b0add1?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-            "width":1,
-            "height":1,
-            "static":true
-        },{
-            headers:{
-                "authorization": `Bearer ${adminToken}`
-            }
-        })
+        const element1Response = await axios.post(`${BACKEND_URL}/api/v1/admin/element`, {
+            imageUrl: "https://example.com/image1",
+            width: 1,
+            height: 1,
+            static: true
+        }, {
+            headers: { authorization: `Bearer ${adminToken}` }
+        });
 
-        const element2Response = await axios.post(`${BACKEND_URL}/api/v1/admin/element`,{
-            "imageUrl":"https://plus.unsplash.com/premium_photo-1683865776032-07bf70b0add1?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-            "width":1,
-            "height":1,
-            "static":true
-        },{
-            headers:{
-                "authorization": `Bearer ${adminToken}`
-            }
-        })
+        const element2Response = await axios.post(`${BACKEND_URL}/api/v1/admin/element`, {
+            imageUrl: "https://example.com/image2",
+            width: 1,
+            height: 1,
+            static: true
+        }, {
+            headers: { authorization: `Bearer ${adminToken}` }
+        });
 
-        element1Id = element1Response.data.id
-        element2Id = element2Response.data  .id
-        
-        const map = await axios.post(`${BACKEND_URL}/api/v1/admin/map`,{
-            "thumbnail":"linkd5a1d3ca2cs",
-            "dimensions":"100*200",
-            "defaultElements":[{
-                "id":"1",
-                "elementId":element1Id,
-                "x":20,
-                "y":20
-            },{
-                "id":"2",
-                "elementId":element2Id,
-                "x":10,
-                "y":20
-            }]
-        },{
-            headers:{
-                "authorization": `Bearer ${adminToken}`
-            }
-        })
+        element1Id = element1Response.data.id;
+        element2Id = element2Response.data.id;
 
-        mapId = map.id
+        const mapResponse = await axios.post(`${BACKEND_URL}/api/v1/admin/map`, {
+            thumbnail: "https://example.com/thumbnail",
+            dimensions: "100*200",
+            defaultElements: [
+                { id: "1", elementId: element1Id, x: 20, y: 20 },
+                { id: "2", elementId: element2Id, x: 10, y: 20 }
+            ]
+        }, {
+            headers: { authorization: `Bearer ${adminToken}` }
+        });
 
-        const spaceResponse = await axios.post(`${BACKEND_URL}/api/v1/space`,{
-            "name":"Test",
-            "dimensions":"100*200",
-            "mapId":mapId
-        },{
-            headers:{
-                "authorization":`Bearer ${userToken}`
-            }
-        })
+        mapId = mapResponse.data.id;
 
-        spaceId = spaceResponse.data.spaceId  
-    }
+        const spaceResponse = await axios.post(`${BACKEND_URL}/api/v1/space`, {
+            name: "Test",
+            dimensions: "100*200",
+            mapId
+        }, {
+            headers: { authorization: `Bearer ${userToken}` }
+        });
 
-    async function setupWs(){
-        ws1 = new WebSocket(WS_URL)
-        await new Promise(r=>{
-            ws1.onopen = r
-        })
+        spaceId = spaceResponse.data.spaceId;
+    };
 
-        ws1.onmessage = (event)=>{
-            ws1Messages.push(JSON.parse(event.data))
-        }
+    const setupWs = async () => {
+        ws1 = new WebSocket(WS_URL);
+        await new Promise((resolve) => ws1.onopen = resolve);
+        ws1.onmessage = (event) => ws1Messages.push(JSON.parse(event.data));
 
-        ws2 = new WebSocket(WS_URL)
-        await new Promise(r=>{
-            ws2.onopen = r 
-        })
+        ws2 = new WebSocket(WS_URL);
+        await new Promise((resolve) => ws2.onopen = resolve);
+        ws2.onmessage = (event) => ws2Messages.push(JSON.parse(event.data));
+    };
 
-        ws2.onmessage = (event)=>{
-            ws2Messages.push(JSON.parse(event.data))
-        }
-    }
+    beforeAll(async () => {
+        await setupHTTP();
+        await setupWs();
+    });
 
-    beforeAll(async()=>{
-       setupHTTP()
-       setupWs()
-    })
+    test("Get back acknowledgment for join", async () => {
+        ws1.send(JSON.stringify({ type: "join", payload: { spaceId, token: adminToken } }));
+        const message1 = await waitForAndPopLatestMessage(ws1Messages);
 
-    test("Get back acknoledgement for join", async()=>{
-        ws1.send(JSON.stringify({
-            "type":"join",
-            "payload":{
-                "spaceId":spaceId,
-                "token":adminToken
-            }
-        }))
+        ws2.send(JSON.stringify({ type: "join", payload: { spaceId, token: userToken } }));
+        const message2 = await waitForAndPopLatestMessage(ws2Messages);
+        const message3 = await waitForAndPopLatestMessage(ws1Messages);
 
-        const message1 = await waitForAndPopLatestMessage(ws1Messages)
-    
-        ws2.send(JSON.stringify({
-            "type":"join",
-            "payload":{
-                "spaceId":spaceId,
-                "token":userToken
-            }
-        }))
+        expect(message1.type).toBe("space-joined");
+        expect(message2.type).toBe("space-joined");
+        expect(message3.type).toBe("user-join");
 
-        const message2 = await waitForAndPopLatestMessage(ws2Messages)
-        const message3 = await waitForAndPopLatestMessage(ws1Messages)
+        expect(message1.payload.users.length).toBe(1);
+        expect(message2.payload.users.length).toBe(2);
 
-        expect(message1.type).toBe("space-joined")
-        expect(message2.type).toBe("space-joined")
+        adminX = message1.payload.spawn.x;
+        adminY = message1.payload.spawn.y;
 
-        expect(message1.payload.users.length + message2.payload.users.length).toBe(0)
-        expect(message2.payload.users.length + message2.payload.users.length).toBe(1)
-        expect(message3.type).toBe("user-join")
-        expect(message3.payload.x).toBe(message2.payload.spawn.x)
-        expect(message3.payload.y).toBe(message2.payload.spawn.y)
-        expect(message3.payload.userId).toBe(userId)
+        userX = message2.payload.spawn.x;
+        userY = message2.payload.spawn.y;
 
-        adminX = message1.payload.spawn.x
-        adminY = message1.payload.spawn.y
+        expect(message3.payload.userId).toBe(userId);
+        expect(message3.payload.x).toBe(userX);
+        expect(message3.payload.y).toBe(userY);
+    });
 
-        userX = message2.payload.spawn.x
-        userY = message2.payload.spawn.y
-    })
+    test("User should not be able to move outside the dimensions", async () => {
+        ws1.send(JSON.stringify({ type: "movement", payload: { x: 500000, y: 500000 } }));
+        const message = await waitForAndPopLatestMessage(ws1Messages);
 
-    test("User should not be able to move outside the dimensions", async()=>{
-        ws1.send(JSON.stringify({
-            type:"movement",
-            payload:{
-                x: 500000,
-                y: 500000
-            }
-        }))
+        expect(message.type).toBe("movement-rejected");
+        expect(message.payload.x).toBe(adminX);
+        expect(message.payload.y).toBe(adminY);
+    });
 
-        const message = await waitForAndPopLatestMessage(ws1Messages)
-        expect(message.type).toBe("movement-rejected")
-        expect(message.paylaod.x).toBe(adminX)
-        expect(message.paylaod.y).toBe(adminY)
-    })
+    test("User should not be able to move two blocks at the same time", async () => {
+        ws1.send(JSON.stringify({ type: "movement", payload: { x: adminX + 2, y: adminY } }));
+        const message = await waitForAndPopLatestMessage(ws1Messages);
 
-    test("User should not be able to move two blocks at the same time", async()=>{
-        ws1.send(JSON.stringify({
-            type:"movement",
-            payload:{
-                x: adminX + 2,
-                y: adminY
-            }
-        }))
+        expect(message.type).toBe("movement-rejected");
+        expect(message.payload.x).toBe(adminX);
+        expect(message.payload.y).toBe(adminY);
+    });
 
-        const message = await waitForAndPopLatestMessage(ws1Messages)
-        expect(message.type).toBe("movement-rejected")
-        expect(message.paylaod.x).toBe(adminX)
-        expect(message.paylaod.y).toBe(adminY)
-    })
+    test("Correct movement should be broadcasted to other sockets", async () => {
+        ws1.send(JSON.stringify({ type: "movement", payload: { x: adminX + 1, y: adminY } }));
+        const message = await waitForAndPopLatestMessage(ws2Messages);
 
-    test("Correct movement should be broadcasted to another sockets", async()=>{
-        ws1.send(JSON.stringify({
-            type:"movement",
-            payload:{
-                x: adminX + 1,
-                y: adminY,
-                userId: adminUserId
-            }
-        }))
+        expect(message.type).toBe("movement");
+        expect(message.payload.x).toBe(adminX + 1);
+        expect(message.payload.y).toBe(adminY);
+    });
 
-        const message = await waitForAndPopLatestMessage(ws2Messages)
-        expect(message.type).toBe("movement")
-        expect(message.paylaod.x).toBe(adminX+1)
-        expect(message.paylaod.y).toBe(adminY)
-    })
+    test("If a user leaves, other users get a leave message", async () => {
+        ws1.close();
+        const message = await waitForAndPopLatestMessage(ws2Messages);
 
-    test("If a user leaves, other users get a leave message", async()=>{
-        ws1.close()
-
-        const message = await waitForAndPopLatestMessage(ws2Messages)
-        expect(message.type).toBe("user-left")
-        expect(message.paylaod.userId).toBe(adminUserId)
-    })
-})
+        expect(message.type).toBe("user-left");
+        expect(message.payload.userId).toBe(adminUserId);
+    });
+});

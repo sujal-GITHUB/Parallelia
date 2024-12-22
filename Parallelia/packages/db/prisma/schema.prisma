@@ -1,0 +1,83 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @unique @default(cuid()) // Unique identifier for the user
+  username   String   @unique // Username must be unique
+  password   String   // User's password
+  avatarId   String?  // Foreign key to Avatar model, optional
+  role       Role     // User role, either Admin or User
+  spaces     Space[]  // One-to-many relationship with Space
+  avatar     Avatar?  @relation(fields: [avatarId], references: [id]) // Optional avatar relation
+}
+
+model Space {
+  id          String          @id @unique @default(cuid()) // Unique identifier for the space
+  name        String          // Name of the space
+  width       Int             // Width of the space
+  height      Int             // Height of the space, optional
+  thumbnail   String?         // Thumbnail URL for the space, optional
+  creatorId   String          // Foreign key to the creator (User)
+  creator     User            @relation(fields: [creatorId], references: [id]) // User who created the space
+  elements    SpaceElements[]  // One-to-many relationship with SpaceElement
+}
+
+model SpaceElements {
+  id        String    @id @unique @default(cuid()) // Unique identifier for the space element
+  elementId String    // Foreign key to Element model
+  spaceId   String    // Foreign key to Space model
+  x         Int       // X-coordinate of the element
+  y         Int       // Y-coordinate of the element
+  space     Space     @relation(fields: [spaceId], references: [id]) // Relation to Space
+  element   Element   @relation(fields: [elementId], references: [id]) // Relation to Element
+}
+
+model Avatar {
+  id        String   @id @unique @default(cuid()) // Unique identifier for the avatar
+  imageUrl  String?  // URL of the avatar image, optional
+  name      String?  // Name of the avatar, optional
+  users     User[]   // One-to-many relationship with User
+}
+
+model Element {
+  id           String          @id @unique @default(cuid()) // Unique identifier for the element
+  width        Int             // Width of the element
+  height       Int             // Height of the element
+  static       Boolean         // Whether the element is static or not
+  imageUrl     String          // URL of the element image
+  spaces       SpaceElements[]  // One-to-many relationship with SpaceElement
+  mapElements  MapElements[]    // One-to-many relationship with MapElement
+}
+
+model Map {
+  id           String       @id @unique @default(cuid()) // Unique identifier for the map
+  width        Int          // Width of the map
+  height       Int          // Height of the map
+  name         String       // Name of the map
+  thumbnail    String?      // Thumbnail URL for the map, optional
+  mapElements  MapElements[] // One-to-many relationship with MapElement
+}
+
+model MapElements {
+  id        String    @id @unique @default(cuid()) // Unique identifier for the map element
+  mapId     String    // Foreign key to Map model
+  elementId String    // Foreign key to Element model
+  x         Int?      // X-coordinate of the element on the map, optional
+  y         Int?      // Y-coordinate of the element on the map, optional
+  map       Map       @relation(fields: [mapId], references: [id]) // Relation to Map
+  element   Element   @relation(fields: [elementId], references: [id]) // Relation to Element
+}
+
+enum Role {
+  Admin // Admin role
+  User  // Regular user role
+}
