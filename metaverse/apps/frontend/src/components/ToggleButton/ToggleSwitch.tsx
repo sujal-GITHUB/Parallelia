@@ -1,158 +1,229 @@
-import React, { useState } from "react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Tabs';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import SignInOptions1 from "../SignInOptions1/SigninOptions1";
 import SignInOptions2 from "../SignInOptions2/SignInOptions2";
-import { signUp } from "../../api/api"; 
-import { SignUpFormData } from "../../types/formTypes"; // Import types for form data
+import { signUp, signIn } from "../../api/api";
+import { SignUpFormData, SignInFormData } from "../../types/formTypes";
 
 const ToggleSwitch: React.FC = () => {
   const [selected, setSelected] = useState<"Sign Up" | "Sign In">("Sign Up");
-  const [formData, setFormData] = useState<SignUpFormData>({
+
+  // Form data for Sign Up
+  const [signUpData, setSignUpData] = useState<SignUpFormData>({
     username: "",
     password: "",
-    role: "",
+    confirmPassword: "",
   });
+
+  // Form data for Sign In
+  const [signInData, setSignInData] = useState<SignInFormData>({
+    username: "",
+    password: "",
+  });
+
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const navigate = useNavigate(); // Use navigate to redirect after success
+
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Check if there's a token in localStorage on component mount
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      setIsAuthenticated(true);
+      navigate("/space"); // Redirect to /space if the token exists
+    }
+  }, [navigate]);
+
+  // Handle input change for Sign Up and Sign In forms
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (selected === "Sign Up") {
+      setSignUpData((prev) => ({ ...prev, [name]: value }));
+    } else {
+      setSignInData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Handle form submission for Sign Up
+  const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null); // Clear any previous errors
-    setSuccessMessage(null); // Clear success message
+    setError(null);
+    setSuccessMessage(null);
 
-    // Validation: Username should be alphanumeric
     const usernamePattern = /^[a-zA-Z0-9]+$/;
-    if (!usernamePattern.test(formData.username)) {
+    if (!usernamePattern.test(signUpData.username)) {
       setError("Username should be alphanumeric only.");
       setLoading(false);
       return;
     }
 
-    // Validation: Role should be either 'Admin' or 'User'
-    if (formData.role !== "Admin" && formData.role !== "User") {
-      setError("Role must be either 'Admin' or 'User'.");
+    if (signUpData.password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      setLoading(false);
+      return;
+    }
+
+    if (signUpData.password !== signUpData.confirmPassword) {
+      setError("Passwords do not match.");
       setLoading(false);
       return;
     }
 
     try {
-      const response = await signUp(formData);
-      console.log("Signup successful:", response);
-      setSuccessMessage("Signup successful! Welcome aboard.");
-    } catch (error) {
-      setError(error.message);
+      const { confirmPassword, ...dataToSend } = signUpData; // Exclude confirmPassword
+      const payload = { ...dataToSend, role: "user" }; // Add role field directly
+      const response = await signUp(payload);
+      console.log("Signup response:", response);
+
+      if (!response.success) {
+        setError(`Error: ${response.message || "Signup failed"}`);
+      } else {
+        setSuccessMessage("Signup successful! Now, sign in.");
+        setSelected("Sign In"); // Automatically switch to Sign In form
+      }
+    } catch (error: any) {
+      const errorMessage = error?.message || "Signup failed";
+      setError(errorMessage);
       console.error("Signup failed:", error);
-      alert(`Signup failed: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="flex flex-col items-center w-full font-inter">
-      {/* Toggle Switch */}
-      <div className="relative flex items-center w-11/12 h-10 mb-4 bg-gray-50 rounded-md border border-[#8239ff]">
-        {/* Sliding background */}
-        <div
-          className={`absolute top-0 left-0 w-1/2 h-full bg-[#7525ff] rounded-md transition-transform duration-300 ${
-            selected === "Sign Up" ? "translate-x-0" : "translate-x-full"
-          }`}
-        ></div>
+  // Handle form submission for Sign In
+  const handleSignInSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccessMessage(null);
 
-        {/* Sign Up Button */}
-        <button
-          onClick={() => setSelected("Sign Up")}
-          className={`relative z-10 flex-1 flex items-center justify-center text-center font-semibold transition-colors duration-300 ${
-            selected === "Sign Up" ? "text-white" : "text-black"
-          }`}
-        >
-          Sign Up
-        </button>
+    if (!signInData.username || !signInData.password) {
+      setError("Please enter both username and password.");
+      setLoading(false);
+      return;
+    }
 
-        {/* Sign In Button */}
-        <button
-          onClick={() => setSelected("Sign In")}
-          className={`relative z-10 flex-1 flex items-center justify-center text-center font-semibold transition-colors duration-300 ${
-            selected === "Sign In" ? "text-white" : "text-black"
-          }`}
-        >
-          Sign In
-        </button>
-      </div>
+    try {
+      const response = await signIn(signInData);
+      console.log("SignIn response:", response);
 
-      {/* Divider */}
-      <hr className="my-4 w-full border-[#8239ff]" />
+      if (!response.success) {
+        setError(`Error: ${response.message || "SignIn failed"}`);
+      } else {
+        setSuccessMessage("Sign-in successful! Welcome back.");
+        setIsAuthenticated(true); // Mark as authenticated
+        localStorage.setItem("authToken", response.token); // Store the token in localStorage
+        navigate("/space"); // Redirect to /space after successful sign-in
+      }
+    } catch (error: any) {
+      const errorMessage = error?.message || "SignIn failed";
+      setError(errorMessage);
+      console.error("SignIn failed:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      {/* Conditional Rendering for Sign Up and Sign In */}
-      <div className="w-11/12 mt-2">
-        {selected === "Sign Up" ? (
-          <>
-            <form
-              onSubmit={handleSubmit}
-              className="flex flex-col gap-2 font-inter text-black"
-            >
+  // Conditional rendering for the space page
+  if (!isAuthenticated) {
+    return (
+      <div className="flex flex-col items-center w-full font-inter px-5">
+        {/* Tabs with onValueChange handler */}
+        <Tabs value={selected} onValueChange={(value: string) => setSelected(value as "Sign Up" | "Sign In")} className="w-full">
+          <TabsList className="w-full">
+            <TabsTrigger value="Sign Up" className="w-full font-semibold">Sign Up</TabsTrigger>
+            <TabsTrigger value="Sign In" className="w-full font-semibold">Sign In</TabsTrigger>
+          </TabsList>
+          <TabsContent value="Sign Up" className="w-full">
+            {/* Sign Up Form */}
+            <form onSubmit={handleSignUpSubmit} className="flex flex-col gap-2 font-inter text-black w-full">
               <input
                 type="text"
                 name="username"
                 placeholder="Username"
-                value={formData.username}
+                value={signUpData.username}
                 onChange={handleInputChange}
-                className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#8239ff]"
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#8239ff] w-full"
               />
               <input
                 type="password"
                 name="password"
                 placeholder="Password"
-                value={formData.password}
+                value={signUpData.password}
                 onChange={handleInputChange}
-                className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#8239ff]"
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#8239ff] w-full"
               />
               <input
-                type="text"
-                name="role"
-                placeholder="Role (Admin or User)"
-                value={formData.role}
+                type="password"
+                name="confirmPassword"
+                placeholder="Confirm Password"
+                value={signUpData.confirmPassword}
                 onChange={handleInputChange}
-                className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#8239ff]"
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#8239ff] w-full"
               />
               <button
                 type="submit"
-                className="bg-[#7525ff] text-white py-2 text-sm rounded-md hover:bg-[#651edd] transition duration-300"
+                className="bg-[#7525ff] text-white py-2 text-sm rounded-md hover:bg-[#651edd] transition duration-300 w-full"
                 disabled={loading}
               >
-                {loading ? "Submitting..." : "Submit"}
+                {loading ? "Signing up..." : "Sign Up"}
               </button>
             </form>
-
-            {error && (
-              <div className="text-red-500 text-sm mt-2">{error}</div>
-            )}
-
-            {successMessage && (
-              <div className="text-green-500 text-sm mt-2">{successMessage}</div>
-            )}
-
-            {/* "OR" Divider */}
-            <div className="flex items-center justify-center my-4">
+            {error && <div className="text-red-500 text-sm mt-2 w-full">{error}</div>}
+            {successMessage && <div className="text-green-500 text-sm mt-2 w-full">{successMessage}</div>}
+            <div className="flex items-center justify-center my-4 w-full">
               <div className="w-1/4 border-b border-gray-300"></div>
               <span className="mx-2 text-sm text-gray-500">or</span>
               <div className="w-1/4 border-b border-gray-300"></div>
             </div>
-
             <SignInOptions1 />
-          </>
-        ) : (
-          <SignInOptions2 />
-        )}
+          </TabsContent>
+          <TabsContent value="Sign In" className="w-full">
+            {/* Sign In Form */}
+            <form onSubmit={handleSignInSubmit} className="flex flex-col gap-2 font-inter text-black w-full">
+              <input
+                type="text"
+                name="username"
+                placeholder="Username"
+                value={signInData.username}
+                onChange={handleInputChange}
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#8239ff] w-full"
+              />
+              <input
+                type="password"
+                name="password"
+                placeholder="Password"
+                value={signInData.password}
+                onChange={handleInputChange}
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#8239ff] w-full"
+              />
+              <button
+                type="submit"
+                className="bg-[#7525ff] text-white py-2 text-sm rounded-md hover:bg-[#651edd] transition duration-300 w-full"
+                disabled={loading}
+              >
+                {loading ? "Signing in..." : "Sign In"}
+              </button>
+            </form>
+            {error && <div className="text-red-500 text-sm mt-2 w-full">{error}</div>}
+            {successMessage && <div className="text-green-500 text-sm mt-2 w-full">{successMessage}</div>}
+            <div className="flex items-center justify-center my-4 w-full">
+              <div className="w-1/4 border-b border-gray-300"></div>
+              <span className="mx-2 text-sm text-gray-500">or</span>
+              <div className="w-1/4 border-b border-gray-300"></div>
+            </div>
+            <SignInOptions2 />
+          </TabsContent>
+        </Tabs>
       </div>
-    </div>
-  );
+    );
+  }
 };
 
 export default ToggleSwitch;

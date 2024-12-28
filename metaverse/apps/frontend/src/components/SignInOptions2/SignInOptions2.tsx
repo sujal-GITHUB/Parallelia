@@ -10,32 +10,30 @@ const SignInOptions2: React.FC = () => {
   const options: Option[] = [
     {
       id: 1,
-      icon: "https://cdn-icons-png.flaticon.com/512/5968/5968853.png", // GitLab Icon URL
-      label: "Self Hosted GitLab",
+      icon: "https://cdn4.iconfinder.com/data/icons/logos-brands-7/512/google_logo-google_icongoogle-512.png", // Google Icon URL
+      label: "Sign in with Google",
     },
     {
       id: 2,
-      icon: "https://cdn-icons-png.freepik.com/512/312/312308.png", // SSO Icon URL
-      label: "Sign in with SSO",
+      icon: "https://w7.pngwing.com/pngs/640/461/png-transparent-apple-logo-company-apple-logo-company-service-computer.png", // Apple Icon URL
+      label: "Sign in with Apple",
     },
   ];
 
   return (
-    <div className="flex flex-col gap-4 w-full justify-center">
+    <div className="flex flex-col gap-4">
+      {/* Sign-in options (Google, Apple) */}
       {options.map((option) => (
         <button
           key={option.id}
-          className="flex items-center gap-4 px-4 py-3 border justify-center border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-300 w-full text-left"
+          className="flex bg-white hover:bg-gray-200 items-center justify-center gap-4 px-4 py-3 border rounded-lg transition duration-300"
           onClick={() => console.log(`Clicked: ${option.label}`)}
         >
-          <img
-            src={option.icon}
-            alt={`${option.label} Icon`}
-            className="w-6 h-6"
-          />
-          <span className="text-black text-sm font-semibold font-inter">{option.label}</span>
+          <img src={option.icon} alt={`${option.label} Icon`} className="w-6 h-6" />
+          <span className="text-black font-semibold text-sm font-inter">{option.label}</span>
         </button>
       ))}
+
     </div>
   );
 };

@@ -1,6 +1,11 @@
 export interface SignUpFormData {
     username: string;
     password: string;
-    role: string;
+    confirmPassword: string;
+  }
+  
+export interface SignInFormData {
+    username: string;
+    password: string;
   }
   
