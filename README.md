@@ -1,6 +1,6 @@
 # Parallelia
 
-**Parallelia** is a 3D metaverse platform inspired by Gather Town, designed to simulate real-life, in-person social interactions within interactive virtual spaces. It enables users to navigate virtual environments, interact with objects, and socialize in a shared online world.
+**Parallelia** is a 2D metaverse platform inspired by Gather Town, designed to simulate real-life, in-person social interactions within interactive virtual spaces. It enables users to navigate virtual environments, interact with objects, and socialize in a shared online world.
 
 ---
 
